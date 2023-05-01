@@ -9,10 +9,10 @@ CLI utility used for scraping ciphersuite details.
 import argparse
 import os
 import sys
-import json
 import re
 
 import requests
+import yaml
 
 from cipherscrape import __version__
 
@@ -28,13 +28,17 @@ def main():
     matches = re.findall('<li><a href="(?P<url>.+)">Detailed info about (?P<iana>\w+) \((?P<hex>.+)\) cipher suite.</a></li>', html.text)
 
     for match in matches:
+        hexcodes = {}
+        hexcode = match[2].replace(' ', '').upper().replace('X', 'x')
+        for count, value in enumerate(hexcode.split(','), start=1):
+            hexcodes[f"hex_byte_{count}"] = value
         rows.append({
-            "Url": match[0],
-            "Description": match[1],
-            "Value": match[2].replace(' ', '').upper().replace('X', 'x')
+            "model": "directory.ScanigmaCipher",
+            "pk": match[1],
+            "fields": hexcodes
         })
 
-    print(json.dumps(rows, indent=4))
+    print(yaml.dump(rows, sort_keys=False))
 
 
 if __name__ == "__main__":
