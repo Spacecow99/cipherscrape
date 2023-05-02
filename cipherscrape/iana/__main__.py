@@ -14,16 +14,17 @@ import copy
 import json
 
 import requests
+import yaml
 
 from cipherscrape import __version__
 
 
 def main():
     parser = argparse.ArgumentParser(prog="cipherscrape.iana")
+    parser.add_argument("--include-reserved", action="store_true", default=False, help="")
+    parser.add_argument("--include-unassigned", action="store_true", default=False, help="")
     parser.add_argument("--version", action="version", version=f"{__version__}")
     args = parser.parse_args()
-
-    rows = []
 
     try:
         r = requests.get("https://www.iana.org/assignments/tls-parameters/tls-parameters-4.csv")
@@ -31,14 +32,17 @@ def main():
         sys.stderr.write(f"{str(e)}\n")
         sys.exit(127)
 
-
-    #with open('tls-parameters-4.csv', 'r') as f:
-    f = r.text.split('\n')
+    f = r.text.split('\n') # Split instead of IOString for DictReader iterable
     csv_reader = csv.DictReader(f)
-    #rows = []
+    rows = []
     for line in csv_reader:
-        #print(line)
-        #if '-' in line["Value"]:
+        # Skip "Reserved" values/ranges unless specified
+        if line["Description"].startswith("Reserved") and not args.include_reserved:
+            continue
+        # Skip "Unassigned" values/ranges unless specified
+        if line["Description"].startswith("Unassigned") and not args.include_unassigned:
+            continue
+
         first, second = line["Value"].split(',')
         # If dash in first byte, generate all permutations
         if '-' in first:
@@ -51,8 +55,8 @@ def main():
                 for i in range(0x00, 0xff+1):
                     new_line = copy.copy(line)
                     new_line["Value"] = f"{hex(value).upper().replace('X', 'x')},{hex(i).upper().replace('X', 'x')}"
-
                     rows.append(new_line)
+        # If dash in second byte, generate all permutations
         elif '-' in second:
             start, stop = second.split('-')
             start = int(start, base=16)
@@ -64,8 +68,24 @@ def main():
         else:
             rows.append(line)
 
+    yaml_rows = []
+    for row in rows:
+        hexcodes = {}
+        for count, value in enumerate(row["Value"].split(','), start=1):
+            hexcodes[f"hex_byte_{count}"] = value
+        yaml_rows.append({
+            "model": "directory.IanaCipher",
+            "pk": row["Description"],
+            "fields": {
+                **hexcodes,
+                "DTLS": row["DTLS-OK"],
+                "Recommended": row["Recommended"],
+                "Reference": row["Reference"]
+            }
+        })
 
-    print(json.dumps(rows, indent=4))
+    #print(json.dumps(rows, indent=4))
+    print(yaml.dump(yaml_rows, sort_keys=False))
 
 if __name__ == "__main__":
     try:
