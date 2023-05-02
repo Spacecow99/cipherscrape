@@ -3,7 +3,7 @@
 """
 CLI application entry point for cipherscrape.
 
-CLI utility used for scraping ciphersuite details.
+CLI utility used for scraping IANA ciphersuite details from testssl.
 """
 
 import argparse
@@ -15,6 +15,7 @@ import re
 from collections import namedtuple
 
 import requests
+import yaml
 
 from cipherscrape import __version__
 
@@ -38,8 +39,20 @@ def main():
         matches = re.findall(REGEX, r.text)
         for match in matches:
             c = ciphersuite._make(match)
-            rows.append(c._asdict())
-    print(json.dumps(rows, indent=4))
+            # Ignore any entries that don't produce IANA format name
+            if c.Description == "-":
+                continue
+            #c.
+            hexcodes = {}
+            #hexcode = match[2].replace(' ', '').upper().replace('X', 'x')
+            for count, value in enumerate(c.Value.split(','), start=1):
+                hexcodes[f"hex_byte_{count}"] = value
+            rows.append({
+                "model": "directory.TestsslCipher",
+                "pk": c.Description,
+                "fields": hexcodes
+            })
+    print(yaml.dump(rows, sort_keys=False))
 
 
 if __name__ == "__main__":
