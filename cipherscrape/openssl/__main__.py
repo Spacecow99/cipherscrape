@@ -8,11 +8,7 @@ CLI utility used for scraping OpenSSL ciphersuite details.
 
 import argparse
 from collections import namedtuple
-# import csv
-# import json
-# import os
 import re
-# import sys
 
 import requests
 from bs4 import BeautifulSoup
@@ -23,9 +19,12 @@ from cipherscrape import __version__
 
 def main():
     parser = argparse.ArgumentParser(prog="cipherscrape.openssl")
+    #parser.add_argument("SOURCE", choices=["man1", "testssl"], help="")
+    #parser.add_argument("--release", choices=["1.0.2", "1.1.1", "3.0", "3.1", "ALL"], nargs="+", )
     parser.add_argument("--version", action="version", version=f"{__version__}")
     args = parser.parse_args()
 
+    #if args.SOURCE == "testssl":
     CIPHER_MAPPING_URL = "https://raw.githubusercontent.com/drwetter/testssl.sh/master/etc/cipher-mapping.txt"
     # Absolutely cursed. Basically just create groups based on not-whitespace with whitespace seperators
     TESTSSL_REGEX = "(?P<Value>\S+)\s+-\s+(?P<OpenSSL>\S+)\s+(?P<Description>\S+)\s+(?P<Version>\S+)\s+Kx=(?P<Kex>\S+)\s+Au=(?P<Auth>\S+)\s+Enc=(?P<Enc>\S+)\s+Mac=(?P<Mac>\S+)\s+"
@@ -36,16 +35,20 @@ def main():
     for match in re.findall(TESTSSL_REGEX, r.text):
         c = ciphersuite._make(match)
         testssl_rows.append(c._asdict())
-    #print(json.dumps(testssl_rows, indent=4))
+        #print(json.dumps(testssl_rows, indent=4))
 
-    URL_102_MAN1 = "https://www.openssl.org/docs/man1.0.2/man1/ciphers.html"
-    URL_111_MAN1 = "https://www.openssl.org/docs/man1.1.1/man1/ciphers.html"
-    URL_30_MAN1 = "https://www.openssl.org/docs/man3.0/man1/openssl-ciphers.html"
-    URL_31_MAN1 = "https://www.openssl.org/docs/man3.1/man1/openssl-ciphers.html"
+    #elif args.SOURCE == "man1":
+    MANPAGE = {
+        "1.0.2": "https://www.openssl.org/docs/man1.0.2/man1/ciphers.html",
+        "1.1.1": "https://www.openssl.org/docs/man1.1.1/man1/ciphers.html",
+        "3.0":   "https://www.openssl.org/docs/man3.0/man1/openssl-ciphers.html",
+        "3.1":   "https://www.openssl.org/docs/man3.1/man1/openssl-ciphers.html"
+    }
     MANPAGE_REGEX = "\s*(\S+)\s+(Not\ implemented.?|\S+)\s*(\(\S+\))?"
 
     manpage_rows = []
-    for url in [URL_102_MAN1, URL_111_MAN1, URL_30_MAN1, URL_31_MAN1]:
+    for url in MANPAGE.values():
+    #for url in [MAPAGE[x] for x in args.release]:
         r = requests.get(url)
         soup = BeautifulSoup(r.text, 'html.parser')
         for f in soup.find_all("code"):
@@ -114,7 +117,7 @@ def main():
         value = dict(value)
         # Skip any ciphersuites that we were not able to establish hexcodes for.
         # Currently this is only for one of the instances of DHE-PSK-AES128-CCM8
-        # which we still ensure is in our list due to the other isntance.
+        # which we still ensure is in our list due to the other instance.
         # TLS_DHE_PSK_WITH_AES_128_CCM_8 vs TLS_PSK_DHE_WITH_AES_128_CCM_8
         if "Value" not in value:
             continue
