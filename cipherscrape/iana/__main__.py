@@ -77,10 +77,10 @@ def main():
             "model": "directory.IanaCipher",
             "pk": row["Description"],
             "fields": {
-                **hexcodes,
-                "DTLS": row["DTLS-OK"],
-                "Recommended": row["Recommended"],
-                "Reference": row["Reference"]
+                **hexcodes
+                # "DTLS": row["DTLS-OK"],
+                # "Recommended": row["Recommended"],
+                # "Reference": row["Reference"]
             }
         })
 
